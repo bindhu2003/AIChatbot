@@ -1,0 +1,1 @@
+CHATBOT using artificial intelligence employs Python with spaCy, SpeechRecognition, Matplotlib and Pillow libraries. Its command line interface integrates spaCy NLP for context-aware responses excelling in health, education and weather queries. Input can be taken from Audio and text and output will be visual and text form.
