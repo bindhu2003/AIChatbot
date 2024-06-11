@@ -1,12 +1,12 @@
-# Import necessary libraries
 import spacy
 import speech_recognition as sr
-#from IPython.display import display
+import requests
 import matplotlib.pyplot as plt
 from PIL import Image
+import requests
 
+# Load spaCy model for natural language processing
 try:
-    # Load spaCy model for natural language processing
     nlp = spacy.load("en_core_web_sm")
 except OSError:
     # Download the spaCy model if not found
@@ -16,9 +16,11 @@ except OSError:
 # Define a SimpleChatbot class
 class SimpleChatbot:
     def __init__(self):
-        self.context = {} # Context to store information during the conversation
+        self.context = {}  # Context to store information during the conversation(working on this thing)
         self.nlp = nlp  # Use the loaded spaCy model
         self.recognizer = sr.Recognizer()
+        self.weather_api_key = '3fad28b1f6617e940610f44e42304a7e'
+        self.song_api_key = 'SONG_API_KEY'  # working on it
 
     # Method to get user input in text format
     def get_user_input_text(self):
@@ -40,6 +42,30 @@ class SimpleChatbot:
             except sr.RequestError as e:
                 print(f"Error with the speech recognition service: {e}")
                 return ""
+
+    # Method to get weather information from OpenWeatherMap API
+    def get_weather_info(self, city):
+        url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={self.weather_api_key}&units=metric"
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            temp = data['main']['temp']
+            description = data['weather'][0]['description']
+            return f"The current temperature in {city} is {temp}°C with {description}."
+        else:
+            return "Sorry, I couldn't retrieve the weather information right now."
+
+    # Method to get song suggestions from Last.fm API
+    def get_song_suggestions(self, mood):
+        url = f"http://ws.audioscrobbler.com/2.0/?method=tag.gettoptracks&tag={mood}&api_key={self.song_api_key}&format=json"
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            tracks = data['tracks']['track']
+            suggestions = [track['name'] for track in tracks[:5]]  # Get top 5 songs
+            return f"Here are some {mood} songs:\n" + "\n".join(suggestions)
+        else:
+            return "Sorry, I couldn't retrieve song suggestions right now."
 
     # Method to prompt the user to choose between text and voice input modes
     def get_user_input(self):
@@ -73,19 +99,20 @@ class SimpleChatbot:
             return self.exit_chat(), True
         
         elif any(word in user_input for word in fami):
-            return "I don't have a family in the way humans do. I'm here to assist and provide information. Is there anything else you'd like to know?",False
+            return "I don't have a family in the way humans do. I'm here to assist and provide information. Is there anything else you'd like to know?", False
         
         elif any(word in user_input for word in live):
-            return "I reside in the cloud, enjoying the virtual breeze and soaking up the digital sunshine. It's a bit crowded up here with all the data, but the neighbors are friendly.",False
+            return "I reside in the cloud, enjoying the virtual breeze and soaking up the digital sunshine. It's a bit crowded up here with all the data, but the neighbors are friendly.", False
+
         elif any(word in user_input for word in siblings):
-            return " I'm a chatbot there to assist you. I don't have siblings in the traditional sense.I'm not a living being, so I don't have family relationships.",False
+            return " I'm a chatbot there to assist you. I don't have siblings in the traditional sense.I'm not a living being, so I don't have family relationships.", False
+
         elif any(word in user_input for word in song_keywords):
-            if 'type' in user_input:  # Check for keywords related to music type selection
-                return self.select_music_type(user_input), False
-            else:
-                return self.suggest_songs(), False
+            return self.suggest_songs(input_mode), False
+        
         elif user_input == 'exit':
             return self.exit_chat(), True
+        
         elif any(topic_keyword in user_input for topic_keyword in ['education', 'study', 'learn']):
             return self.inquire_about_topic('education'), False
 
@@ -142,45 +169,18 @@ class SimpleChatbot:
         elif topic == 'education':
             print("We provide information on various education levels. Choose one:\n1. School\n2. Intermediate\n3. Undergraduation")
 
-    def inquire_about_weather(self,input_mode):
-        print("What season are you interested in for the weather forecast? (summer/winter/rainy)")
+    def inquire_about_weather(self, input_mode):
+        print("Which city's weather would you like to know about?")
         if input_mode == 'text':
-            season = input("You (Text):")
+            city = input("You (Text): ")
         elif input_mode == 'voice':
-            season = self.get_user_input_voice()
-            if not season:
+            city = self.get_user_input_voice()
+            if not city:
                 return "Sorry, I couldn't understand the audio."
 
-        season = season.lower()
+        weather_info = self.get_weather_info(city)
+        return weather_info
 
-        if season == 'summer':
-            return self.get_summer_weather_response()
-        elif season == 'winter':
-            return self.get_winter_weather_response()
-        elif season == 'rainy':
-            return self.get_rainy_weather_response()
-        else:
-            return "I'm sorry, I didn't recognize that season. Please choose summer, winter, or rainy.\nWhat topic would you like information on? Options include education, weather, health, songs etc."
-
-    def get_summer_weather_response(self):
-        return "In summer, you can expect warm temperatures. It's a good time for outdoor activities and enjoying the sunshine.\nWhat topic would you like information on? Options include education, weather, health, songs etc."
-
-    def get_winter_weather_response(self):
-        return "During winter, temperatures are colder, and you might experience snow or rain. It's advisable to dress warmly and be cautious of slippery surfaces.\nWhat topic would you like information on? Options include education, weather, health, songs etc."
-
-    def get_rainy_weather_response(self):
-        return "In the rainy season, you can expect precipitation. Don't forget to carry an umbrella or raincoat when heading out.\nWhat topic would you like information on? Options include education, weather, health, songs etc."
-   
-    def select_music_type(self, user_input):
-        if 'text' in user_input:
-            return self.suggest_songs_text()
-        elif 'voice' in user_input:
-            return self.suggest_songs_voice()
-        else:
-            return "I didn't catch that. Please specify whether you want song suggestions through text or voice.", False
-
-    
-            
     def exit_chat(self):
         feedback = input("Was this information helpful? (yes/no): ").lower()
         if feedback == 'yes':
@@ -190,96 +190,45 @@ class SimpleChatbot:
         else:
             return "Invalid feedback. Goodbye!"
         
-    def suggest_songs(self):
+    def suggest_songs(self, input_mode):
         if input_mode == "text":
             mood = input("Sure! I'd love to suggest some songs. Could you tell me your current mood? ")
         elif input_mode == "voice":
             print("Sure! I'd love to suggest some songs. Could you tell me your current mood? ")
             mood = self.get_user_input_voice()
             if not mood:
-                return "Sorry, I couldn't understand the audio."        
-        if mood.lower() == 'happy':
-            return "Great choice! Here are some happy songs: \"Darshana\" by Anurag Kulkarni\n\"Vachinde\" by Suddala Ashok Teja\n\"ButtaBomma\" by Ramajogayya Sastry\n\"Choti Choti Baatein\" by  Devi Sri Prasad\n\"O Pilla Subhanallah\" by Ananta Sriram"
-        elif mood.lower() == 'sad':
-            return "I'm sorry to hear that. Here are some comforting songs: \"Nammaka Thappani\" by Devi Sri Prasad\n\"Oosupodu\" by Chaithanya Pingali\n\"Kallalo Unnadedo\" by Vanamali\n\"Koti Koti\" by Ananta Sriram\n\"Nee Tholisariga\" by Sirivennela Seetharama Sastry"
-        else:
-            return "I'm not sure about that mood. Here are some random songs: \"Inkem Inkem Inkem Kaavaale\" by  Ananta Sriram\n\"Emai Pothane\" by a Anantha Sriram\n\"Emo Emo\" by Sreejo\n\"Ninnu Kori\" by  Ramajogayya Sastry\n\"Prema Desam\" by Sirivennela Seetharama Sastry"
-        
-    def get_education_response(self):
-        return "We offer a variety of educational courses. Whether you're interested in programming, science, or art, we have something for everyone. " \
-               "Please visit our website or contact our support team for more details."
+                return "Sorry, I couldn't understand the audio."
 
-    def get_weather_response(self):
-        return "I don't have access to real-time weather information right now. " \
-               "But it's always good to carry an umbrella, just in case!"
+        song_suggestions = self.get_song_suggestions(mood.lower())
+        return song_suggestions
 
-    def get_health_response(self):
-        return "For health-related queries, it's important to consult with a healthcare professional. " \
-               "If you have specific symptoms, please provide more details for personalized advice."
-
-    def get_school(self):
-        return "School education lays the foundation for future learning. Make sure to attend classes regularly and stay curious!\nAfter School education, you can enter into intermediate courses like MPC, BiPC, MEC, CEC, and you may also take other diploma courses too.."
-
-    def get_intermediate(self):
-        return "Intermediate education is crucial for specialization. Consider subjects that align with your interests and career goals.\nAfter intermediate education, you can pursue courses like: Engineering/Technology: BTech, BE\nMedical Sciences: MBBS, BDS, BSc Nursing\nCommerce/Business: BCom, BBA, CA, CS\nComputer Science/IT: BCA, BSc IT\nArts/Humanities: BA, BFA, BSW\nPsychology: BSc Psychology\nParamedical: BSc Paramedical"
-
-    def get_undergraduation(self):
-        return "Undergraduation is a significant step. Explore various courses and choose a major that aligns with your passion and career aspirations.\nAfter undergraduate studies: Master's Degree: MA, MBA\nDoctoral Programs (Ph.D.)\nLaw (LL.M.)\nMedical Specializations (MD, MS)\nEducation (B.Ed, M.Ed)\nEntrepreneurship Programs"
-
+    # Health remedies functions (simplified for brevity)
     def get_headache_remedy(self):
-        image_path = 'headache.jpg'  
-        img = Image.open(image_path)
-        plt.imshow(img)
-        plt.axis('off')
-        plt.show()
-        return "For a headache, you might try resting in a quiet, dark room, staying hydrated, and taking over-the-counter pain relievers. " \
-               "However, it's essential to consult with a healthcare professional for persistent headaches."
-    
+        return "For a headache, consider resting in a quiet, dark room, staying hydrated, and taking over-the-counter pain relief if necessary."
+
     def get_sore_throat_remedy(self):
-        image_path = 'sorethroat.jpg'  
-        img = Image.open(image_path)
-        plt.imshow(img)
-        plt.axis('off')
-        plt.show()
-        return "For a sore throat, you can try drinking warm tea with honey, gargling with saltwater, and staying hydrated. " \
-               "If the sore throat persists, it's recommended to consult with a healthcare professional."
+        return "For a sore throat, try gargling with warm salt water, staying hydrated, and using throat lozenges."
 
     def get_cough_remedy(self):
-        image_path = 'cough.jpg'  
-        img = Image.open(image_path)
-        plt.imshow(img)
-        plt.axis('off')
-        plt.show()
-        return "For a cough, consider staying hydrated, using a humidifier, and taking over-the-counter cough medicine. " \
-               "If the cough persists or is accompanied by other symptoms, consult with a healthcare professional."
+        return "For a cough, stay hydrated, use a humidifier, and consider honey or cough medicine."
 
     def get_fever_remedy(self):
-        image_path = 'fever.jpg'  
-        img = Image.open(image_path)
-        plt.imshow(img)
-        plt.axis('off')
-        plt.show()
-        return "For a fever, it's important to rest, stay hydrated, and consider taking over-the-counter fever-reducing medications like acetaminophen or ibuprofen or paracetamol or dolo 650 " \
-               "If the fever persists or is accompanied by other concerning symptoms, consult with a healthcare professional."
+        return "For a fever, stay hydrated, rest, and take over-the-counter fever reducers if needed."
 
     def get_stomach_ache_remedy(self):
-        image_path = 'stomachache.jpg'  
-        img = Image.open(image_path)
-        plt.imshow(img)
-        plt.axis('off')
-        plt.show()
-        return "For a stomach ache, you can try resting, drinking clear fluids, and avoiding spicy or fatty foods. " \
-               "If the stomach ache persists or is severe, it's advisable to consult with a healthcare professional."
+        return "For a stomach ache, try drinking clear fluids, avoiding solid food for a few hours, and eating bland foods when you feel ready."
 
     def get_nausea_remedy(self):
-        image_path = 'nausea.jpg'  
-        img = Image.open(image_path)
-        plt.imshow(img)
-        plt.axis('off')
-        plt.show()
-        return "For nausea, consider sipping on clear fluids, eating bland foods, and avoiding strong odors. " \
-               "If nausea persists or is accompanied by other symptoms, it's important to consult with a healthcare professional."
+        return "For nausea, try eating small, frequent meals, avoiding strong smells, and drinking ginger tea."
 
+    def get_school(self):
+        return "School provides primary education, focusing on basic subjects such as reading, writing, math, and science."
+
+    def get_intermediate(self):
+        return "Intermediate education, often referred to as high school, prepares students for higher education and future careers with more specialized subjects."
+
+    def get_undergraduation(self):
+        return "Undergraduate education typically involves earning a bachelor's degree in a chosen field of study at a college or university."
 
 # Main loop for the chatbot
 chatbot = SimpleChatbot()
