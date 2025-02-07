@@ -1,0 +1,25 @@
+
+SimpleChatbot/
+├── main.py
+├── chatbot.py
+├── health.py
+├── education.py
+├── weather.py
+├── general.py
+├── utils.py
+├── tourism.py
+├── songs.py
+├── config.py
+├── gui.py
+├── requirements.txt
+├── tourist images/
+    └── pictures(.jpeg files)
+└── data/
+    └── medical_data.csv
+
+Decision Tree Accuracy: 0.8621
+Random Forest Accuracy: 0.8793
+Support Vector Machine Accuracy: 0.6379
+K-Nearest Neighbors Accuracy: 0.7931
+Naive Bayes Accuracy: 0.7586
+Logistic Regression Accuracy: 0.6034
